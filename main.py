@@ -2,6 +2,9 @@
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+
+import os
+
 import requests
 import json
 import pandas as pd
@@ -9,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Replace YOUR_API_KEY with your own Alpha Vantage API key
-api_key = ''
+api_key = open("secret.txt", "r").read()
 
 # Get the ticker symbol from the user
 ticker_symbol = input("Enter the ticker symbol of the company: ")
@@ -41,19 +44,25 @@ for function in functions:
         exit()
 
 # Load the financial data into a pandas DataFrame
-financial_data = pd.DataFrame(financial_data)
+# financial_data = pd.DataFrame(financial_data)
 # Example expense ratio (expenses as a proportion of revenue)
 expense_ratio = 0.6
 
 # Example growth rate
 growth_rate = 0.03
 
+financial_data = financial_data['INCOME_STATEMENT']['annualReports'][0]
+
+financial_data['future_revenue'] = int(financial_data['totalRevenue']) * growth_rate *  5
+
+financial_data['future_expenses'] = int(financial_data['totalRevenue']) * expense_ratio *  5
+
 # Check if the data contains the column 'revenue'
-if "future_revenue" in financial_data.columns and "future_expenses" not in financial_data.columns:
-    financial_data["future_expenses"] = financial_data["future_revenue"] * expense_ratio
-if "totalRevenue" in financial_data.columns:
-    financial_data["future_revenue"] = financial_data["totalRevenue"].iloc[-1] * (1 + growth_rate) ** (range(1, len(financial_data) + 1))
-financial_data["future_expenses"] = financial_data["future_revenue"] * expense_ratio
+# if "future_revenue" in financial_data.columns and "future_expenses" not in financial_data.columns:
+#     financial_data["future_expenses"] = financial_data["future_revenue"] * expense_ratio
+# if "totalRevenue" in financial_data.columns:
+#     financial_data["future_revenue"] = financial_data["totalRevenue"].iloc[-1] * (1 + growth_rate) ** (range(1, len(financial_data) + 1))
+# financial_data["future_expenses"] = financial_data["future_revenue"] * expense_ratio
 
 # Assume a discount rate of 10%
 discount_rate = 0.1
@@ -68,7 +77,7 @@ financial_data['future_cash_flows'] = financial_data['future_revenue'] - financi
 financial_data['DCF_valuation'] = None
 
 # Calculate the present value of future cash flows
-financial_data['DCF_valuation'] = financial_data['future_cash_flows'] / (1 + discount_rate)**(range(1, len(financial_data) + 1))
+financial_data['DCF_valuation'] = financial_data['future_cash_flows'] / (1 + discount_rate)
 
 # Print the financial data with the new columns
 print(financial_data)
@@ -77,37 +86,41 @@ print(financial_data)
 discount_rates = np.linspace(0.05, 0.15, num=11)
 valuations = []
 for rate in discount_rates:
-    valuations.append(financial_data['future_cash_flows'].sum() / ((1 + rate)**(range(1, len(financial_data) + 1))).sum())
-    plt.plot(discount_rates, valuations)
-    plt.xlabel('Discount Rate')
-    plt.ylabel('Valuation')
-    plt.show()
+    valuations.append(financial_data['future_cash_flows'] / ((1 + rate)))
 
-    # Sensitivity analysis on growth rate
-    growth_rates = np.linspace(0, 0.06, num=7)
-    valuations = []
+plt.plot(discount_rates, valuations)
+plt.xlabel('Discount Rate')
+plt.ylabel('Valuation')
+plt.show()
+
+# Sensitivity analysis on growth rate
+growth_rates = np.linspace(0, 0.06, num=7)
+valuations = []
 
 for rate in growth_rates:
-    financial_data['future_revenue'] = financial_data['totalRevenue'].iloc[-1] * (1 + rate)**(range(1, len(financial_data) + 1))
+    financial_data['future_revenue'] = int(financial_data['totalRevenue']) * (1 + rate)
     financial_data['future_expenses'] = financial_data['future_revenue'] * expense_ratio
     financial_data['future_cash_flows'] = financial_data['future_revenue'] - financial_data['future_expenses']
-    valuations.append(financial_data['future_cash_flows'].sum() / ((1 + discount_rate)**(range(1, len(financial_data) + 1))).sum())
-    plt.plot(growth_rates, valuations)
-    plt.xlabel('Growth Rate')
-    plt.ylabel('Valuation')
-    plt.show()
+    valuations.append(financial_data['future_cash_flows'] / ((1 + discount_rate)))
+
+
+
+plt.plot(growth_rates, valuations)
+plt.xlabel('Growth Rate')
+plt.ylabel('Valuation')
+plt.show()
 
 # Report generation
 report = {}
 report['Discount Rate'] = discount_rate
 report['Growth Rate'] = growth_rate
 report['Expense Ratio'] = expense_ratio
-report['Valuation'] = financial_data['DCF_valuation'].sum()
+report['Valuation'] = financial_data['DCF_valuation']
 
 # Output the report to an excel file
-report_df = pd.DataFrame(report, index=[0])
-report_df.to_excel('DCF_Valuation_Report.xlsx')
+# report_df = pd.DataFrame(report, index=[0])
+# report_df.to_excel('DCF_Valuation_Report.xlsx')
 
-
+print(report)
 
 
